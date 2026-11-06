@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "MJ",
+    "slug": "mama-jualan",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "mamajualan",
+    "android": {
+      "package": "com.mamajualan.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#dc2626",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-font",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#dc2626",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MJ memakai kamera untuk memindai QR Code toko.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MJ memakai galeri untuk foto menu dan poster."
+        }
+      ],
+      "expo-status-bar"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "73ba3079-3b28-405a-9e35-f99e2c043745"
+      }
+    },
+    "owner": "2443088"
+  }
+}
