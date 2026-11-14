@@ -11,8 +11,8 @@ export type TabParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
-  OrderEditor: { draftId?: string } | undefined;
-  CustomerForm: { customerId?: string } | undefined;
+  OrderEditor: { draftId?: string; openImport?: boolean } | undefined;
+  CustomerForm: { customerId?: string; prefillName?: string } | undefined;
   MenuForm: { menuId?: string } | undefined;
   Settings: undefined;
   PosterStudio: undefined;

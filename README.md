@@ -1,4 +1,4 @@
-# 🍱 MJ (Mama Jualan) v2.0
+# 🍱 MJ (Mama Jualan) v2.1
 
 ![Expo](https://img.shields.io/badge/Expo-SDK_57-000020?logo=expo)
 ![React Native](https://img.shields.io/badge/React_Native-0.86-61DAFB?logo=react&logoColor=black)
@@ -14,6 +14,8 @@ Aplikasi pencatat pesanan untuk usaha kuliner rumahan. Dipakai di dua HP (HP Mam
 - **Sinkron tanpa login.** HP kedua masuk dengan kode `MJ-XXXXXX` atau pindai QR dari HP Mama.
 - **Offline-first.** Semua perubahan ditulis ke AsyncStorage dulu; dikirim otomatis saat online.
 - **Input pesanan cepat.** Cari pelanggan, pilih menu, total dihitung otomatis, beberapa pesanan sekaligus (*Add Another Order*).
+- **Import Chat WA (Gemini AI).** Tempel pesan pesanan dari WhatsApp untuk otomatis mengenali pelanggan, menu, dan jumlah (mengabaikan ongkir & mencocokkan varian).   
+- **Mode Kurir / Pengantaran.** Kartu pengantaran tunggal di layar Home untuk menandai titik antar selesai satu per satu.   
 - **Teks untuk kurir** (GoSend / Grab / kurir pribadi) lewat tombol *Kirim ke Kurir*.
 - **Rute antar otomatis.** Urutan titik dengan Nearest Neighbor (Haversine), dipecah per 10 titik, dibuka di Google Maps.
 - **Poster promo.** 8 template (Story 9:16 dan Feed 3:4), sampai 4 foto dengan bentuk berbeda (bulat, kotak membulat, daun, lengkung), plus template daftar menu. Tanpa harga. Hasil 1080 px, siap kirim ke WhatsApp / Instagram.
@@ -75,6 +77,8 @@ EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
 EXPO_PUBLIC_FIREBASE_DATABASE_URL=https://NAMA-PROJECT-default-rtdb.asia-southeast1.firebasedatabase.app
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
 EXPO_PUBLIC_FIREBASE_APP_ID=...
+EXPO_PUBLIC_GEMINI_API_KEY=AIzaSy...   
+# EXPO_PUBLIC_GEMINI_MODEL=nama-model-terbaru   # opsional jika model bawaan mati  
 ```
 
 7. Restart Metro: `npx expo start -c`.
@@ -160,12 +164,20 @@ npx eas-cli build --platform android --profile preview
 >
 > ```json
 > "preview": { "distribution": "internal", "android": { "buildType": "apk" },
->   "env": { "EXPO_PUBLIC_FIREBASE_API_KEY": "...", "EXPO_PUBLIC_FIREBASE_DATABASE_URL": "...", "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "...", "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "...", "EXPO_PUBLIC_FIREBASE_APP_ID": "..." } }
+>   "env": { "EXPO_PUBLIC_FIREBASE_API_KEY": "...", "EXPO_PUBLIC_FIREBASE_DATABASE_URL": "...", "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "...", "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "...", "EXPO_PUBLIC_FIREBASE_APP_ID": "...", "EXPO_PUBLIC_GEMINI_API_KEY": "..." } }
 > ```
 >
 > Atau isi lewat expo.dev → Project → Environment variables.
 
 Unduh `.apk`, unggah ke Google Drive, buka tautannya di HP Mama, izinkan *Install unknown apps*.
+
+**Perintah update:** 
+```bash
+npx eas-cli update --channel preview --platform android --message "ringkasan perubahan" 
+```
+(hanya untuk perubahan kode di src/, tanpa mengubah version atau paket native).   
+
+**Cara update di HP**: Tutup aplikasi sepenuhnya, buka (mengunduh update), tutup lagi, lalu buka kembali. 
 
 ## 🩺 Troubleshooting Firebase
 
@@ -174,6 +186,9 @@ Unduh `.apk`, unggah ke Google Drive, buka tautannya di HP Mama, izinkan *Instal
 1. Pastikan `.env` terisi, lalu **restart Metro dengan cache bersih**: `npx expo start -c` (nilai `EXPO_PUBLIC_*` hanya dibaca saat bundling).
 2. Buka ulang aplikasi di HP pertama. Cek Firebase Console → Realtime Database → Data: harus muncul `stores/MJ-XXXXXX/profile` dan `members/<uid>`.
 3. Di HP kedua, masukkan kode lagi.
+4. **"API key Gemini belum diisi / ditolak"** → Cek `EXPO_PUBLIC_GEMINI_API_KEY` di `.env` (lalu `npx expo start -c`) atau di `eas.json` / EAS Environment (lalu build ulang).   
+5. **"Semua model Gemini tidak tersedia"** → Isi `EXPO_PUBLIC_GEMINI_MODEL` dengan nama model terbaru di `.env`, lalu kirim OTA update.   
+6. **"OTA update tidak muncul di HP"** → Buka-tutup aplikasi 2 kali; pastikan versi APK sama (`2.1.0`) dan channel `preview`.
 
 Bila tetap gagal: periksa (a) Rules sudah di-*Publish*, (b) Authentication → Anonymous = *Enabled*, (c) `EXPO_PUBLIC_FIREBASE_DATABASE_URL` sama persis dengan URL di halaman Realtime Database (region Singapore memakai `...asia-southeast1.firebasedatabase.app`).
 
@@ -202,4 +217,4 @@ Bila tetap gagal: periksa (a) Rules sudah di-*Publish*, (b) Authentication → A
 
 ## 📄 Lisensi
 
-Proyek KKP/PI. Tentukan lisensi sebelum dipublikasikan.
+Proyek ini dilisensikan di bawah [MIT License](LICENSE) — bebas digunakan untuk referensi pembelajaran dan pengembangan. Dibuat khusus untuk membantu operasional usaha kuliner rumahan sekaligus sebagai proyek portofolio.

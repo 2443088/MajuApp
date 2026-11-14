@@ -14,8 +14,7 @@ import {
 } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { PosterTemplate } from '../components/PosterTemplate';
-import { PhotoFrame } from '../components/poster/PhotoFrame';
-import { AppIcon, BackHeader, Input, Screen, Txt } from '../components/ui';
+import { AppIcon, BackHeader, Input, Screen, Toggle, Txt } from '../components/ui';
 import { useStore } from '../context/StoreContext';
 import type { RootStackParamList } from '../navigation/types';
 import {
@@ -47,6 +46,8 @@ function Field({
   placeholder,
   keyboardType,
   maxLength,
+  visible,
+  onVisibleChange,
 }: {
   label: string;
   value: string;
@@ -54,18 +55,37 @@ function Field({
   placeholder?: string;
   keyboardType?: 'default' | 'phone-pad';
   maxLength?: number;
+  visible?: boolean;
+  onVisibleChange?: (v: boolean) => void;
 }) {
   return (
     <View>
-      <Label>{label}</Label>
+      <View className="mb-1.5 flex-row items-center justify-between">
+        <Txt className="text-[13px] font-dm-bold text-zinc-600">{label}</Txt>
+        {onVisibleChange ? (
+          <Toggle value={visible ?? true} onValueChange={onVisibleChange} label={`Tampilkan ${label}`} />
+        ) : null}
+      </View>
       <Input
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         keyboardType={keyboardType}
         maxLength={maxLength}
-        className="h-12 rounded-xl border border-zinc-200 bg-white px-3.5 text-base"
+        editable={visible !== false}
+        className={`h-12 rounded-xl border border-zinc-200 px-3.5 text-base ${
+          visible === false ? 'bg-zinc-100 text-zinc-400' : 'bg-white'
+        }`}
       />
+    </View>
+  );
+}
+
+function SwitchRow({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (v: boolean) => void }) {
+  return (
+    <View className="min-h-[46px] flex-row items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/70 px-3.5">
+      <Txt className="text-[13px] font-dm-bold text-zinc-700">{label}</Txt>
+      <Toggle value={value} onValueChange={onValueChange} label={label} />
     </View>
   );
 }
@@ -77,7 +97,7 @@ export function PosterStudioScreen() {
   const previewWidth = Math.min(screenWidth - 44, 420);
 
   const [ratio, setRatio] = useState<PosterRatio>('9:16');
-  const [templateId, setTemplateId] = useState<PosterTemplateId>('story-grid');
+  const [templateId, setTemplateId] = useState<PosterTemplateId>('story-4');
   const template = getTemplate(templateId);
 
   const [selectedLogoId, setSelectedLogoId] = useState<string | null>(null);
@@ -85,14 +105,31 @@ export function PosterStudioScreen() {
   const [newLogoName, setNewLogoName] = useState('');
   const [newLogoTempUri, setNewLogoTempUri] = useState<string | null>(null);
 
-  const [sectionLayouts, setSectionLayouts] = useState<Record<string, 'auto' | 'full' | 'half'>>({});
+  const [brand, setBrand] = useState(profile?.store_name ?? session?.store_name ?? 'AHUA');
+  const [subtitle, setSubtitle] = useState('MENU BESOK');
+  const [showSubtitle, setShowSubtitle] = useState(true);
+  const [title, setTitle] = useState('SIDE DISH');
+  const [showCategory, setShowCategory] = useState(true);
 
-  const [brand, setBrand] = useState(profile?.store_name ?? session?.store_name ?? '');
-  const [subtitle, setSubtitle] = useState('MENU');
-  const [since, setSince] = useState('');
-  const [title, setTitle] = useState('');
+  const [topNote, setTopNote] = useState("TODAY'S KITCHEN NOTE");
+  const [showTopNote, setShowTopNote] = useState(true);
+  const [dividerTagline, setDividerTagline] = useState('FRESHLY MADE — WITH LOVE');
+  const [showDivider, setShowDivider] = useState(true);
+  const [feedSticker, setFeedSticker] = useState('made fresh every day');
+  const [showFeedSticker, setShowFeedSticker] = useState(true);
+  const [feedLabel, setFeedLabel] = useState('OUR KITCHEN RECOMMENDS');
+  const [showFeedLabel, setShowFeedLabel] = useState(true);
+  const [textIntro, setTextIntro] = useState('Good food, prepared for tomorrow.');
+  const [showTextIntro, setShowTextIntro] = useState(true);
+  const [menuNote, setMenuNote] = useState('PRE-ORDER TODAY • ENJOY TOMORROW');
+  const [showMenuNote, setShowMenuNote] = useState(true);
+
   const [orderText, setOrderText] = useState(template.defaultOrderText);
+  const [showFooterCta, setShowFooterCta] = useState(true);
   const [phone, setPhone] = useState(profile?.phone_number ?? '');
+  const [showWhatsappBadge, setShowWhatsappBadge] = useState(true);
+  const [showItemNumbers, setShowItemNumbers] = useState(true);
+
   const [slots, setSlots] = useState<PosterSlot[]>(emptySlots());
   const [selectedIds, setSelectedIds] = useState<string[]>(() => menu.slice(0, MAX_LIST_ITEMS).map((m) => m.id));
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
@@ -105,21 +142,11 @@ export function PosterStudioScreen() {
   const groupedMenu = useMemo(() => {
     const groups: { label: string; items: typeof menu }[] = [];
 
-    // 1. Unlabeled items first
-    const unlabeled = menu.filter((m) => !m.label || !m.label.trim());
-    if (unlabeled.length > 0) {
-      groups.push({ label: '', items: unlabeled });
-    }
-
-    // 2. Labeled items in order of store labels
     for (const lbl of labels) {
       const items = menu.filter((m) => m.label?.trim() === lbl);
-      if (items.length > 0) {
-        groups.push({ label: lbl, items });
-      }
+      if (items.length > 0) groups.push({ label: lbl, items });
     }
 
-    // 3. Any other labeled items
     const seen = new Set(labels);
     for (const item of menu) {
       const l = item.label?.trim();
@@ -129,6 +156,9 @@ export function PosterStudioScreen() {
       }
     }
 
+    const unlabeled = menu.filter((m) => !m.label || !m.label.trim());
+    if (unlabeled.length > 0) groups.push({ label: '', items: unlabeled });
+
     return groups;
   }, [menu, labels]);
 
@@ -137,31 +167,74 @@ export function PosterStudioScreen() {
       .map((g) => ({
         label: g.label,
         items: g.items.filter((item) => selectedIds.includes(item.id)).map((item) => item.title),
-        layout: sectionLayouts[g.label] ?? 'auto',
       }))
       .filter((g) => g.items.length > 0);
-  }, [groupedMenu, selectedIds, sectionLayouts]);
+  }, [groupedMenu, selectedIds]);
 
   const content: PosterContent = useMemo(
     () => ({
       brand,
       subtitle,
-      since,
+      showSubtitle,
+      since: '',
       title,
+      showCategory,
+      topNote,
+      showTopNote,
+      dividerTagline,
+      showDivider,
+      feedSticker,
+      showFeedSticker,
+      feedLabel,
+      showFeedLabel,
+      textIntro,
+      showTextIntro,
+      menuNote,
+      showMenuNote,
       orderText,
+      showFooterCta,
       phone,
+      showWhatsappBadge,
+      showItemNumbers,
       slots,
       listItems: sections.flatMap((s) => s.items),
       sections,
       logoUri,
     }),
-    [brand, subtitle, since, title, orderText, phone, slots, sections, logoUri],
+    [
+      brand,
+      subtitle,
+      showSubtitle,
+      title,
+      showCategory,
+      topNote,
+      showTopNote,
+      dividerTagline,
+      showDivider,
+      feedSticker,
+      showFeedSticker,
+      feedLabel,
+      showFeedLabel,
+      textIntro,
+      showTextIntro,
+      menuNote,
+      showMenuNote,
+      orderText,
+      showFooterCta,
+      phone,
+      showWhatsappBadge,
+      showItemNumbers,
+      slots,
+      sections,
+      logoUri,
+    ],
   );
 
   const chooseTemplate = (id: PosterTemplateId) => {
     const next = getTemplate(id);
-    // Teks ajakan ikut berganti bila belum diubah pengguna.
     if (orderText === template.defaultOrderText) setOrderText(next.defaultOrderText);
+    if (id === 'feed-1' && subtitle === 'MENU BESOK') setSubtitle('SINCE 2002');
+    else if (id !== 'feed-1' && subtitle === 'SINCE 2002') setSubtitle('MENU BESOK');
     setTemplateId(id);
   };
 
@@ -210,19 +283,8 @@ export function PosterStudioScreen() {
     if (allSelected) {
       setSelectedIds((curr) => curr.filter((id) => !itemIds.includes(id)));
     } else {
-      setSelectedIds((curr) => {
-        const set = new Set([...curr, ...itemIds]);
-        return Array.from(set).slice(0, MAX_LIST_ITEMS);
-      });
+      setSelectedIds((curr) => Array.from(new Set([...curr, ...itemIds])).slice(0, MAX_LIST_ITEMS));
     }
-  };
-
-  const cycleLayout = (lbl: string) => {
-    setSectionLayouts((curr) => {
-      const current = curr[lbl] ?? 'auto';
-      const next = current === 'auto' ? 'full' : current === 'full' ? 'half' : 'auto';
-      return { ...curr, [lbl]: next };
-    });
   };
 
   const toggleItem = (id: string) =>
@@ -272,6 +334,9 @@ export function PosterStudioScreen() {
     }
   };
 
+  const isFeed = template.id === 'feed-1';
+  const isText = template.kind === 'list';
+
   const footer = (
     <View className="border-t border-zinc-100 bg-white px-[22px] py-3.5">
       {missing ? <Txt className="mb-2 text-center text-xs text-amber-600">{missing}</Txt> : null}
@@ -319,13 +384,13 @@ export function PosterStudioScreen() {
             <Pressable
               key={item.id}
               onPress={() => chooseTemplate(item.id)}
-              className={`min-h-[66px] w-[150px] justify-center rounded-2xl border px-3 py-2 ${
+              className={`min-h-[66px] w-[148px] justify-center rounded-2xl border px-3 py-2 ${
                 selected ? 'border-2 border-red-600 bg-red-50' : 'border-zinc-200 bg-white'
               }`}
             >
-              <Txt className={`text-sm font-dm-bold ${selected ? 'text-red-700' : 'text-zinc-700'}`}>{item.name}</Txt>
+              <Txt className={`text-sm font-dm-bold ${selected ? 'text-red-700' : 'text-zinc-700'}`}>{item.short}</Txt>
               <Txt className="mt-0.5 text-[11px] text-zinc-500" numberOfLines={2}>
-                {item.kind === 'list' ? 'Tanpa foto' : `${item.photoSlots} foto`}
+                {item.kind === 'list' ? 'Daftar teks' : `${item.photoSlots} foto`}
               </Txt>
             </Pressable>
           );
@@ -339,31 +404,28 @@ export function PosterStudioScreen() {
         </View>
       </View>
       <Txt className="mb-5 mt-2 text-center text-xs text-zinc-400">
-        Hasil disimpan {RATIO_OUTPUT[template.ratio].width}×{RATIO_OUTPUT[template.ratio].height} px
+        Hasil disimpan {RATIO_OUTPUT[template.ratio].width}×{RATIO_OUTPUT[template.ratio].height} px · Tanpa harga
       </Txt>
 
-      {/* Pilihan Logo Postingan */}
-      <View className="mb-5 rounded-[18px] border border-zinc-100 bg-white p-4">
-        <View className="mb-2 flex-row items-center justify-between">
-          <Txt className="text-base font-dm-bold">Logo Postingan</Txt>
+      <View className="mb-5 gap-3 rounded-[18px] border border-zinc-100 bg-white p-4">
+        <View className="flex-row items-center justify-between">
+          <Txt className="text-base font-dm-bold">Identitas Toko</Txt>
           <Pressable onPress={() => void handlePickLogo()} hitSlop={8} className="flex-row items-center gap-1">
             <AppIcon name="plus" size={14} color={colors.red600} />
             <Txt className="text-[13px] font-dm-bold text-red-600">Tambah Logo</Txt>
           </Pressable>
         </View>
-        <Txt className="mb-3 text-xs text-zinc-500">
-          Pilih logo yang sesuai untuk postingan ini, atau gunakan teks nama toko.
-        </Txt>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }} className="py-1">
           <Pressable
             onPress={() => setSelectedLogoId(null)}
-            className={`min-h-[72px] w-[110px] items-center justify-center rounded-2xl border p-2 ${
+            className={`min-h-[68px] w-[108px] items-center justify-center rounded-2xl border p-2 ${
               selectedLogoId === null ? 'border-2 border-red-600 bg-red-50' : 'border-zinc-200 bg-white'
             }`}
           >
-            <AppIcon name="book" size={20} color={selectedLogoId === null ? colors.red600 : colors.zinc500} />
-            <Txt className={`mt-1.5 text-center text-xs font-dm-bold ${selectedLogoId === null ? 'text-red-700' : 'text-zinc-600'}`}>
-              Teks Toko
+            <AppIcon name="book" size={19} color={selectedLogoId === null ? colors.red600 : colors.zinc500} />
+            <Txt className={`mt-1 text-center text-xs font-dm-bold ${selectedLogoId === null ? 'text-red-700' : 'text-zinc-600'}`}>
+              Teks Judul
             </Txt>
           </Pressable>
           {logos.map((logo) => {
@@ -372,11 +434,11 @@ export function PosterStudioScreen() {
               <Pressable
                 key={logo.id}
                 onPress={() => setSelectedLogoId(logo.id)}
-                className={`min-h-[72px] w-[125px] items-center justify-center rounded-2xl border p-2 ${
+                className={`min-h-[68px] w-[120px] items-center justify-center rounded-2xl border p-2 ${
                   isSelected ? 'border-2 border-red-600 bg-red-50' : 'border-zinc-200 bg-white'
                 }`}
               >
-                <Image source={{ uri: logo.uri }} style={{ width: 55, height: 32 }} resizeMode="contain" />
+                <Image source={{ uri: logo.uri }} style={{ width: 55, height: 30 }} resizeMode="contain" />
                 <Txt
                   numberOfLines={1}
                   className={`mt-1 text-center text-xs font-dm-bold ${isSelected ? 'text-red-700' : 'text-zinc-600'}`}
@@ -387,31 +449,91 @@ export function PosterStudioScreen() {
             );
           })}
         </ScrollView>
+
+        {selectedLogoId === null ? (
+          <>
+            <Field label="Nama toko" value={brand} onChangeText={setBrand} maxLength={24} />
+            <Field
+              label="Subjudul"
+              value={subtitle}
+              onChangeText={setSubtitle}
+              maxLength={25}
+              visible={showSubtitle}
+              onVisibleChange={setShowSubtitle}
+            />
+          </>
+        ) : null}
       </View>
 
       {template.kind === 'photos' ? (
-        <View className="mb-5 gap-3 rounded-[18px] border border-zinc-100 bg-white p-4">
-          <Txt className="text-base font-dm-bold">Foto & nama menu</Txt>
-          {Array.from({ length: template.photoSlots }, (_, i) => (
-            <View key={i} className="flex-row items-center gap-3">
-              <Pressable onPress={() => setPickerSlot(i)} accessibilityLabel={`Pilih foto ${i + 1}`}>
-                <PhotoFrame uri={slots[i]?.uri} shape={template.shapes[i]} width={64} ring />
-                <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-red-600">
-                  <AppIcon name="edit" size={12} color={colors.white} />
+        <View className="mb-5 gap-3.5 rounded-[18px] border border-zinc-100 bg-white p-4">
+          <Txt className="text-base font-dm-bold">Foto & Nama Hidangan</Txt>
+          {Array.from({ length: template.photoSlots }, (_, i) => {
+            const slot = slots[i];
+            return (
+              <View key={i} className="gap-2.5 rounded-2xl border border-zinc-200 bg-zinc-50/50 p-3">
+                <View className="flex-row items-center gap-3">
+                  <Pressable onPress={() => setPickerSlot(i)} accessibilityLabel={`Pilih foto ${i + 1}`}>
+                    <View className="h-16 w-16 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
+                      {slot?.uri ? (
+                        <Image source={{ uri: slot.uri }} className="h-full w-full" resizeMode="cover" />
+                      ) : (
+                        <View className="h-full w-full items-center justify-center">
+                          <AppIcon name="image" size={22} color={colors.zinc400} />
+                        </View>
+                      )}
+                    </View>
+                    <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full bg-red-600">
+                      <AppIcon name="edit" size={12} color={colors.white} />
+                    </View>
+                  </Pressable>
+                  <View className="flex-1">
+                    <Label>{`Makanan ${i + 1}`}</Label>
+                    <Input
+                      value={slot?.caption ?? ''}
+                      onChangeText={(text) => updateSlot(i, { caption: text })}
+                      placeholder="Tulis nama makanan"
+                      maxLength={30}
+                      className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm"
+                    />
+                  </View>
                 </View>
-              </Pressable>
-              <View className="flex-1">
-                <Label>{`Nama menu ${i + 1}`}</Label>
-                <Input
-                  value={slots[i]?.caption ?? ''}
-                  onChangeText={(text) => updateSlot(i, { caption: text })}
-                  placeholder="Tulis nama makanan"
-                  maxLength={40}
-                  className="h-12 rounded-xl border border-zinc-200 px-3.5 text-base"
-                />
+
+                <View className="border-t border-zinc-200/70 pt-2">
+                  <View className="mb-1 flex-row items-center justify-between">
+                    <Txt className="text-[11px] font-dm-bold text-zinc-500">Deskripsi singkat</Txt>
+                    <Toggle
+                      value={slot?.showDescription ?? true}
+                      onValueChange={(v) => updateSlot(i, { showDescription: v })}
+                      label={`Deskripsi makanan ${i + 1}`}
+                    />
+                  </View>
+                  <Input
+                    value={slot?.description ?? ''}
+                    onChangeText={(text) => updateSlot(i, { description: text })}
+                    placeholder="Contoh: fresh from our kitchen"
+                    maxLength={45}
+                    editable={slot?.showDescription !== false}
+                    className={`h-10 rounded-xl border border-zinc-200 px-3 text-xs ${
+                      slot?.showDescription === false ? 'bg-zinc-100 text-zinc-400' : 'bg-white'
+                    }`}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
+
+          {isFeed ? (
+            <Field
+              label="Badge kategori"
+              value={title}
+              onChangeText={setTitle}
+              placeholder="SIDE DISH"
+              maxLength={22}
+              visible={showCategory}
+              onVisibleChange={setShowCategory}
+            />
+          ) : null}
         </View>
       ) : (
         <View className="mb-5 rounded-[18px] border border-zinc-100 bg-white p-4">
@@ -435,37 +557,18 @@ export function PosterStudioScreen() {
                 const groupItemIds = group.items.map((it) => it.id);
                 const selectedInGroup = groupItemIds.filter((id) => selectedIds.includes(id));
                 const allSelected = selectedInGroup.length === groupItemIds.length;
-                const layout = sectionLayouts[group.label] ?? 'auto';
-                const layoutLabel =
-                  layout === 'auto'
-                    ? 'Otomatis'
-                    : layout === 'full'
-                      ? '2 Kolom'
-                      : '1 Kolom';
 
                 return (
                   <View key={group.label || '__unlabeled__'} className="rounded-xl border border-zinc-100 bg-zinc-50/70 p-3">
                     <View className="mb-2 flex-row items-center justify-between">
-                      <View className="flex-1">
-                        <Txt className="font-dm-bold text-sm text-zinc-800">
-                          {group.label ? group.label : '(Tanpa Label)'} ({selectedInGroup.length}/{group.items.length})
+                      <Txt className="font-dm-bold text-sm text-zinc-800">
+                        {group.label ? group.label : 'Lainnya'} ({selectedInGroup.length}/{group.items.length})
+                      </Txt>
+                      <Pressable onPress={() => toggleGroupItems(groupItemIds)} hitSlop={6}>
+                        <Txt className="text-xs font-dm-bold text-red-600">
+                          {allSelected ? 'Batal' : 'Pilih Semua'}
                         </Txt>
-                      </View>
-                      <View className="flex-row items-center gap-2">
-                        {group.label ? (
-                          <Pressable
-                            onPress={() => cycleLayout(group.label)}
-                            className="rounded-md border border-zinc-200 bg-white px-2 py-0.5"
-                          >
-                            <Txt className="text-[11px] font-dm-bold text-zinc-600">Tampilan: {layoutLabel}</Txt>
-                          </Pressable>
-                        ) : null}
-                        <Pressable onPress={() => toggleGroupItems(groupItemIds)} hitSlop={6}>
-                          <Txt className="text-xs font-dm-bold text-red-600">
-                            {allSelected ? 'Batal' : 'Pilih Semua'}
-                          </Txt>
-                        </Pressable>
-                      </View>
+                      </Pressable>
                     </View>
 
                     <View className="gap-1">
@@ -475,7 +578,7 @@ export function PosterStudioScreen() {
                           <Pressable
                             key={item.id}
                             onPress={() => toggleItem(item.id)}
-                            className="min-h-[42px] flex-row items-center gap-3 rounded-lg px-2 py-1 active:bg-zinc-100"
+                            className="min-h-[40px] flex-row items-center gap-3 rounded-lg px-2 py-1 active:bg-zinc-100"
                           >
                             <View
                               className={`h-5 w-5 items-center justify-center rounded-md border-2 ${
@@ -499,17 +602,90 @@ export function PosterStudioScreen() {
         </View>
       )}
 
-      <View className="gap-3 rounded-[18px] border border-zinc-100 bg-white p-4">
-        <Txt className="text-base font-dm-bold">Teks poster</Txt>
-        <Field label="Nama toko" value={brand} onChangeText={setBrand} maxLength={24} />
-        <Field label="Subjudul (kosongkan untuk menyembunyikan)" value={subtitle} onChangeText={setSubtitle} maxLength={16} />
-        <Field label="Baris kecil, mis. SINCE 2002 (opsional)" value={since} onChangeText={setSince} maxLength={28} />
-        {template.usesTitle ? (
-          <Field label="Judul kategori" value={title} onChangeText={setTitle} placeholder="SNACK & DESSERT" maxLength={30} />
+      <View className="mb-5 gap-3 rounded-[18px] border border-zinc-100 bg-white p-4">
+        <Txt className="text-base font-dm-bold">Detail & Teks Dekoratif</Txt>
+
+        {!isFeed ? (
+          <Field
+            label="Catatan atas (eyebrow)"
+            value={topNote}
+            onChangeText={setTopNote}
+            maxLength={30}
+            visible={showTopNote}
+            onVisibleChange={setShowTopNote}
+          />
         ) : null}
-        <Field label="Ajakan pesan" value={orderText} onChangeText={setOrderText} maxLength={32} />
+
+        {!isFeed && !isText ? (
+          <>
+            <Field
+              label="Tagline garis pemisah"
+              value={dividerTagline}
+              onChangeText={setDividerTagline}
+              maxLength={35}
+              visible={showDivider}
+              onVisibleChange={setShowDivider}
+            />
+            <SwitchRow label="Nomor urut foto (01, 02)" value={showItemNumbers} onValueChange={setShowItemNumbers} />
+          </>
+        ) : null}
+
+        {isFeed ? (
+          <>
+            <Field
+              label="Label rekomendasi"
+              value={feedLabel}
+              onChangeText={setFeedLabel}
+              maxLength={28}
+              visible={showFeedLabel}
+              onVisibleChange={setShowFeedLabel}
+            />
+            <Field
+              label="Stiker bulat miring"
+              value={feedSticker}
+              onChangeText={setFeedSticker}
+              maxLength={22}
+              visible={showFeedSticker}
+              onVisibleChange={setShowFeedSticker}
+            />
+          </>
+        ) : null}
+
+        {isText ? (
+          <>
+            <Field
+              label="Deskripsi pembuka"
+              value={textIntro}
+              onChangeText={setTextIntro}
+              maxLength={45}
+              visible={showTextIntro}
+              onVisibleChange={setShowTextIntro}
+            />
+            <Field
+              label="Catatan bawah menu"
+              value={menuNote}
+              onChangeText={setMenuNote}
+              maxLength={38}
+              visible={showMenuNote}
+              onVisibleChange={setShowMenuNote}
+            />
+            <SwitchRow label="Nomor urut daftar (01, 02)" value={showItemNumbers} onValueChange={setShowItemNumbers} />
+          </>
+        ) : null}
+      </View>
+
+      <View className="gap-3 rounded-[18px] border border-zinc-100 bg-white p-4">
+        <Txt className="text-base font-dm-bold">Footer Pemesanan</Txt>
+        <Field
+          label="Teks ajakan pesan"
+          value={orderText}
+          onChangeText={setOrderText}
+          maxLength={28}
+          visible={showFooterCta}
+          onVisibleChange={setShowFooterCta}
+        />
         <Field label="Nomor WhatsApp di poster" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={16} />
-        <Txt className="text-xs leading-[18px] text-zinc-500">Harga tidak ditampilkan di poster mana pun.</Txt>
+        <SwitchRow label="Badge bulat WA" value={showWhatsappBadge} onValueChange={setShowWhatsappBadge} />
       </View>
 
       <Modal
@@ -566,7 +742,6 @@ export function PosterStudioScreen() {
         </View>
       </Modal>
 
-      {/* Modal Tambah Logo Baru */}
       <Modal
         transparent
         visible={addLogoModalOpen}
@@ -577,9 +752,7 @@ export function PosterStudioScreen() {
         <View className="flex-1 items-center justify-center bg-zinc-900/40 px-5">
           <View className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
             <Txt className="mb-1 text-lg font-dm-bold">Beri Nama Logo</Txt>
-            <Txt className="mb-4 text-xs text-zinc-500">
-              Contoh: Logo Ahua Menu, Logo Watermark, Logo Utama
-            </Txt>
+            <Txt className="mb-4 text-xs text-zinc-500">Contoh: Logo Utama, Logo Watermark</Txt>
             {newLogoTempUri ? (
               <View className="mb-4 h-24 items-center justify-center rounded-xl bg-zinc-50 p-2">
                 <Image source={{ uri: newLogoTempUri }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />

@@ -56,7 +56,7 @@ import type {
   StoreProfile,
   StoreSession,
 } from '../types';
-import { DAY_MS, RETENTION_DAYS, isValidStoreKey, makeId, makeOrderId, makeStoreKey, normalizeStoreKey } from '../utils/format';
+import { DAY_MS, RETENTION_DAYS, isValidStoreKey, makeId, makeOrderId, makeStoreKey, normalizeStoreKey, slotFromTime } from '../utils/format';
 import { isHidden, isInTrash, mergeRecords } from '../utils/merge';
 
 const EMPTY_MAPS: RecordMaps = { customers: {}, menu_items: {}, orders: {} };
@@ -128,6 +128,8 @@ interface StoreContextValue {
   updateLogoName: (id: string, name: string) => Promise<void>;
 
   addOrders: (drafts: DraftOrder[], deliveryDate: string) => number;
+  /** Mode Kurir: buat titik antar tanpa menu. Pelanggan yang sudah ada di daftar antar hari itu dilewati. */
+  addDeliveries: (customerIds: string[], deliveryDate: string) => { created: number; skipped: number };
   setOrderStatus: (id: string, status: OrderStatus) => void;
   toggleOrderPaid: (id: string) => void;
 
@@ -521,14 +523,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const updated: StoreProfile = current
         ? { ...current, menu_labels: nextLabels, updated_at: Date.now() }
         : {
-            store_name: sessionRef.current?.store_name ?? 'Toko Mama',
-            phone_number: '',
-            origin_address: '',
-            origin_coordinates: null,
-            menu_labels: nextLabels,
-            created_at: Date.now(),
-            updated_at: Date.now(),
-          };
+          store_name: sessionRef.current?.store_name ?? 'Toko Mama',
+          phone_number: '',
+          origin_address: '',
+          origin_coordinates: null,
+          menu_labels: nextLabels,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        };
       commitProfile(updated);
       const key = sessionRef.current?.store_key;
       if (key && isFirebaseConfigured()) pushProfile(key, updated).catch(reportError);
@@ -709,8 +711,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           updated_at: 0,
           customer_id: draft.customer_id,
           delivery_date: deliveryDate,
-          delivery_slot: draft.slot,
-          delivery_time: draft.time,
+          delivery_slot: draft.timeOn ? slotFromTime(draft.time) : 'Pagi',
+          delivery_time: draft.timeOn ? draft.time : '',
+          ...(draft.timeOn && draft.timeNote.trim() ? { time_note: draft.timeNote.trim() } : {}),
           items,
           note: draft.note.trim(),
           total_amount: items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
@@ -723,6 +726,51 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         created += 1;
       });
       return created;
+    },
+    [putRecord],
+  );
+
+  const addDeliveries = useCallback(
+    (customerIds: string[], deliveryDate: string) => {
+      const now = Date.now();
+      let created = 0;
+      let skipped = 0;
+      const taken = new Set(
+        Object.values(mapsRef.current.orders)
+          .filter(
+            (o) => o.kind === 'DELIVERY' && !isHidden(o) && o.delivery_date === deliveryDate && o.status !== 'COMPLETED',
+          )
+          .map((o) => o.customer_id),
+      );
+      customerIds.forEach((customerId) => {
+        if (!mapsRef.current.customers[customerId]) return;
+        if (taken.has(customerId)) {
+          skipped += 1;
+          return;
+        }
+        taken.add(customerId);
+        let id = makeOrderId();
+        while (mapsRef.current.orders[id]) id = makeOrderId();
+        const order: Order = {
+          id,
+          updated_at: 0,
+          kind: 'DELIVERY',
+          customer_id: customerId,
+          delivery_date: deliveryDate,
+          delivery_slot: 'Pagi',
+          delivery_time: '',
+          items: [],
+          note: '',
+          total_amount: 0,
+          delivery_method: 'SELF_COURIER',
+          status: 'PENDING',
+          is_paid: false,
+          created_at: now,
+        };
+        putRecord('orders', order);
+        created += 1;
+      });
+      return { created, skipped };
     },
     [putRecord],
   );
@@ -855,11 +903,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .sort((a, b) => a.title.localeCompare(b.title));
     const orders = Object.values(maps.orders)
       .filter((o) => !isHidden(o))
-      .sort((a, b) =>
-        a.delivery_date === b.delivery_date
-          ? a.delivery_time.localeCompare(b.delivery_time)
-          : a.delivery_date.localeCompare(b.delivery_date),
-      );
+      .sort((a, b) => {
+        if (a.delivery_date !== b.delivery_date) return a.delivery_date.localeCompare(b.delivery_date);
+        // Dalam satu tanggal: yang berjam tampil dulu menurut jam; tanpa jam menurut waktu dibuat.
+        if (a.delivery_time && b.delivery_time) {
+          return a.delivery_time.localeCompare(b.delivery_time) || a.created_at - b.created_at;
+        }
+        if (a.delivery_time) return -1;
+        if (b.delivery_time) return 1;
+        return a.created_at - b.created_at;
+      });
 
     const fromProfile = profile?.menu_labels ?? [];
     const fromMenu = Object.values(maps.menu_items)
@@ -901,6 +954,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteLogo,
       updateLogoName,
       addOrders,
+      addDeliveries,
       setOrderStatus,
       toggleOrderPaid,
       moveToTrash,
@@ -913,7 +967,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ready, session, profile, online, syncEnabled, syncError, activeDevices, maps, images, posters, logos,
     createStore, joinStore, leaveStore, saveStoreProfile, saveCustomer, saveMenuItem, setMenuActive,
     addLabel, renameLabel, deleteLabel, moveMenuItemsToLabel, saveLogo, deleteLogo, updateLogoName,
-    addOrders, setOrderStatus, toggleOrderPaid, moveToTrash, restoreFromTrash, deletePermanently,
+    addOrders, addDeliveries, setOrderStatus, toggleOrderPaid, moveToTrash, restoreFromTrash, deletePermanently,
     savePoster, deletePoster,
   ]);
 

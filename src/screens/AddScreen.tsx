@@ -3,12 +3,13 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
+import { CourierPicker } from '../components/CourierPicker';
 import { AppIcon, Screen, Txt } from '../components/ui';
 import { useDrafts } from '../context/DraftContext';
 import { useStore } from '../context/StoreContext';
 import type { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/colors';
-import { addDays, deliveryLabel, formatRupiah, longDate, shortDate, toISODate } from '../utils/format';
+import { addDays, formatRupiah, longDate, shortDate, timeText, toISODate } from '../utils/format';
 
 function StepTitle({ n, children, trailing }: { n: number; children: string; trailing?: string }) {
   return (
@@ -28,8 +29,8 @@ function StepTitle({ n, children, trailing }: { n: number; children: string; tra
 
 export function AddScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { allMenu, allCustomers, addOrders } = useStore();
-  const { drafts, deliveryDate, setDeliveryDate, clearDrafts, draftTotal } = useDrafts();
+  const { allMenu, allCustomers, addOrders, addDeliveries } = useStore();
+  const { drafts, deliveryDate, setDeliveryDate, clearDrafts, draftTotal, courierMode, courierIds, clearCourier } = useDrafts();
   const [calendarOpen, setCalendarOpen] = useState(false);
 
   const today = new Date();
@@ -41,13 +42,24 @@ export function AddScreen() {
   const isCustomDate = !quick.some((q) => q.iso === deliveryDate);
   const total = drafts.reduce((sum, draft) => sum + draftTotal(draft, allMenu), 0);
 
+  const deliveryCount = courierMode ? courierIds.filter((id) => allCustomers[id]).length : 0;
+  const canSave = drafts.length > 0 || deliveryCount > 0;
+
   const save = () => {
-    const created = addOrders(drafts, deliveryDate);
-    if (created === 0) {
-      Alert.alert('Pesanan kosong', 'Pilih pelanggan dan minimal satu menu pada setiap pesanan.');
-      return;
+    if (drafts.length > 0) {
+      const created = addOrders(drafts, deliveryDate);
+      if (created === 0) {
+        Alert.alert('Pesanan kosong', 'Pilih pelanggan dan minimal satu menu pada setiap pesanan.');
+        return;
+      }
     }
+    let skipped = 0;
+    if (deliveryCount > 0) skipped = addDeliveries(courierIds, deliveryDate).skipped;
     clearDrafts();
+    if (courierMode) clearCourier();
+    if (skipped > 0) {
+      Alert.alert('Sebagian dilewati', `${skipped} pelanggan sudah ada di daftar antar pada tanggal itu.`);
+    }
     navigation.navigate('Main', { screen: 'Home' });
   };
 
@@ -56,15 +68,18 @@ export function AddScreen() {
       <View className="flex-1">
         <Txt className="text-xs text-zinc-500">Total Pesanan</Txt>
         <Txt className="mt-0.5 text-[17px] font-dm-bold">{formatRupiah(total)}</Txt>
+        {deliveryCount > 0 ? (
+          <Txt className="text-xs font-dm-semibold text-red-600">+ {deliveryCount} pengantaran</Txt>
+        ) : null}
       </View>
       <Pressable
-        disabled={drafts.length === 0}
+        disabled={!canSave}
         onPress={save}
         className={`min-h-[55px] flex-row items-center gap-1 rounded-[15px] px-4 ${
-          drafts.length === 0 ? 'bg-zinc-300' : 'bg-red-600 active:bg-red-700'
+          !canSave ? 'bg-zinc-300' : 'bg-red-600 active:bg-red-700'
         }`}
       >
-        <Txt className="font-dm-bold text-white">Simpan Pesanan</Txt>
+        <Txt className="font-dm-bold text-white">{drafts.length === 0 && deliveryCount > 0 ? 'Simpan Pengantaran' : 'Simpan Pesanan'}</Txt>
         <AppIcon name="chevron" color={colors.white} />
       </Pressable>
     </View>
@@ -109,6 +124,14 @@ export function AddScreen() {
         Pelanggan & Detail Pesanan
       </StepTitle>
 
+      <Pressable
+        onPress={() => navigation.navigate('OrderEditor', { openImport: true })}
+        className="mb-3 min-h-[52px] flex-row items-center justify-center gap-2 rounded-2xl border border-red-500 bg-white active:bg-red-50"
+      >
+        <AppIcon name="clipboard" size={19} color={colors.red600} />
+        <Txt className="text-[15px] font-dm-bold text-red-600">Import Chat WA</Txt>
+      </Pressable>
+
       {drafts.length > 0 ? (
         <View className="gap-3">
           {drafts.map((draft, index) => {
@@ -134,10 +157,12 @@ export function AddScreen() {
                       </Txt>
                     ))}
                   </View>
-                  <View className="flex-row items-center gap-1.5 self-start rounded-[9px] bg-red-50 px-2.5 py-1.5">
-                    <AppIcon name="clock" size={17} color={colors.red800} />
-                    <Txt className="text-[13px] font-dm-bold text-red-800">{deliveryLabel(draft.slot, draft.time)}</Txt>
-                  </View>
+                  {draft.timeOn ? (
+                    <View className="flex-row items-center gap-1.5 self-start rounded-[9px] bg-red-50 px-2.5 py-1.5">
+                      <AppIcon name="clock" size={17} color={colors.red800} />
+                      <Txt className="text-[13px] font-dm-bold text-red-800">{timeText(draft.time, draft.timeNote)}</Txt>
+                    </View>
+                  ) : null}
                   {draft.note ? <Txt className="text-[13px] leading-[18px] text-yellow-900">Catatan: {draft.note}</Txt> : null}
                 </View>
                 <View className="min-w-[42px] items-center gap-1">
@@ -167,6 +192,11 @@ export function AddScreen() {
           <AppIcon name="chevron" size={20} color={colors.red600} />
         </Pressable>
       )}
+
+      <StepTitle n={3} trailing={deliveryCount > 0 ? `${deliveryCount} dipilih` : undefined}>
+        Mode Kurir / Pengantaran
+      </StepTitle>
+      <CourierPicker />
 
       <Modal transparent visible={calendarOpen} animationType="slide" statusBarTranslucent onRequestClose={() => setCalendarOpen(false)}>
         <View className="flex-1 justify-end bg-zinc-900/40">

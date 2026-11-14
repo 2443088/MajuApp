@@ -44,7 +44,7 @@ export type IconName =
   | 'search' | 'map' | 'user' | 'phone' | 'chevron' | 'chevron-down' | 'image' | 'rotate'
   | 'wallet' | 'star' | 'heart' | 'minus' | 'edit' | 'arrow-left' | 'settings' | 'logout'
   | 'switch' | 'share' | 'copy' | 'navigation' | 'qr' | 'x' | 'cloud' | 'cloud-off' | 'download' | 'alert'
-  | 'tag' | 'folder' | 'message';
+  | 'tag' | 'folder' | 'message' | 'square' | 'check-square' | 'clipboard' | 'zap' | 'users';
 
 type FeatherName = React.ComponentProps<typeof Feather>['name'];
 
@@ -87,6 +87,11 @@ const ICONS: Record<IconName, FeatherName> = {
   tag: 'tag',
   folder: 'folder',
   message: 'message-circle',
+  square: 'square',
+  'check-square': 'check-square',
+  clipboard: 'clipboard',
+  zap: 'zap',
+  users: 'users',
 };
 
 export function AppIcon({ name, size = 24, color = colors.zinc700 }: { name: IconName; size?: number; color?: string }) {

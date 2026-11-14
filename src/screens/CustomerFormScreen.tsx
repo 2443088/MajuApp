@@ -28,7 +28,7 @@ export function CustomerFormScreen() {
   const { allCustomers, saveCustomer, moveToTrash } = useStore();
 
   const existing = route.params?.customerId ? allCustomers[route.params.customerId] : undefined;
-  const [name, setName] = useState(existing?.name ?? '');
+  const [name, setName] = useState(existing?.name ?? route.params?.prefillName ?? '');
   const [phone, setPhone] = useState(existing?.whatsapp_number ?? '');
   const [address, setAddress] = useState(existing?.address_text ?? '');
   const [landmark, setLandmark] = useState(existing?.landmark ?? '');

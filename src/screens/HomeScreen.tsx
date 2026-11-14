@@ -1,8 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Modal, Pressable, ScrollView, Share, View } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
+import { DeliveryCard, type DeliveryRow } from '../components/DeliveryCard';
 import { OrderCard } from '../components/OrderCard';
 import { AppIcon, Screen, SectionTitle, Txt } from '../components/ui';
 import { useStore } from '../context/StoreContext';
@@ -12,11 +13,12 @@ import {
   buildRouteBatches,
   buildSearchUrl,
   buildSingleStopUrl,
+  nearestNeighborOrder,
   type RouteBatch,
 } from '../services/routeCalculator';
 import { colors } from '../theme/colors';
 import type { Customer, Order } from '../types';
-import { addDays, greeting, relativeDateLabel, toISODate } from '../utils/format';
+import { addDays, greeting, longDate, relativeDateLabel, shortDate, toISODate, toIntlPhone } from '../utils/format';
 
 type Filter = 'Semua' | 'Hari Ini' | 'Besok' | 'Lusa';
 const FILTERS: Filter[] = ['Semua', 'Hari Ini', 'Besok', 'Lusa'];
@@ -53,6 +55,17 @@ export function HomeScreen() {
   const [filter, setFilter] = useState<Filter>('Semua');
   const [filterOpen, setFilterOpen] = useState(false);
   const [batches, setBatches] = useState<RouteBatch<string>[] | null>(null);
+  // Kartu pengantaran yang baru selesai tetap tampil sebentar dengan indikator "selesai".
+  const [lingering, setLingering] = useState<Record<string, true>>({});
+  const lingerTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const lastToggled = useRef<Record<string, string>>({});
+
+  useEffect(
+    () => () => {
+      Object.values(lingerTimers.current).forEach(clearTimeout);
+    },
+    [],
+  );
 
   const storeName = profile?.store_name ?? session?.store_name ?? 'Toko Mama';
 
@@ -60,6 +73,87 @@ export function HomeScreen() {
     () => orders.filter((o) => o.status !== 'COMPLETED' && matchesFilter(o, filter)),
     [orders, filter],
   );
+
+  const regularActive = useMemo(() => active.filter((o) => o.kind !== 'DELIVERY'), [active]);
+
+  const deliveryGroups = useMemo(() => {
+    const byDate = new Map<string, Order[]>();
+    orders
+      .filter((o) => o.kind === 'DELIVERY' && matchesFilter(o, filter))
+      .forEach((o) => byDate.set(o.delivery_date, [...(byDate.get(o.delivery_date) ?? []), o]));
+    return Array.from(byDate.entries())
+      .filter(([date, list]) => lingering[date] || list.some((o) => o.status !== 'COMPLETED'))
+      .sort(([a], [b]) => a.localeCompare(b));
+  }, [orders, filter, lingering]);
+
+  const buildRows = (list: Order[]): DeliveryRow[] => {
+    const origin = profile?.origin_coordinates;
+    const entries = list.map((order) => ({ order, customer: allCustomers[order.customer_id] }));
+    const byName = (a: (typeof entries)[number], b: (typeof entries)[number]) =>
+      (a.customer?.name ?? '').localeCompare(b.customer?.name ?? '');
+    const located = entries.filter((e) => e.customer?.coordinates);
+    const rest = entries.filter((e) => !e.customer?.coordinates).sort(byName);
+    // Urutan antar: terdekat dari rumah (Nearest Neighbor). Tanpa titik rumah: urut nama.
+    const ordered = origin
+      ? nearestNeighborOrder(
+          origin,
+          located.map((e) => ({ coordinates: e.customer!.coordinates!, payload: e })),
+        ).map((stop) => stop.payload)
+      : located.sort(byName);
+    return [...ordered, ...rest].map((e) => ({
+      order: e.order,
+      customer: e.customer,
+      hasLocation: customerMapUrl(e.customer) !== null,
+    }));
+  };
+
+  const clearLinger = (date: string) => {
+    clearTimeout(lingerTimers.current[date]);
+    delete lingerTimers.current[date];
+    setLingering((prev) => {
+      const { [date]: _gone, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const startLinger = (date: string) => {
+    clearTimeout(lingerTimers.current[date]);
+    setLingering((prev) => ({ ...prev, [date]: true }));
+    lingerTimers.current[date] = setTimeout(() => clearLinger(date), 3500);
+  };
+
+  const toggleDelivery = (order: Order, group: Order[]) => {
+    const wasDone = order.status === 'COMPLETED';
+    setOrderStatus(order.id, wasDone ? 'PENDING' : 'COMPLETED');
+    lastToggled.current[order.delivery_date] = order.id;
+    if (wasDone) clearLinger(order.delivery_date);
+    else if (group.every((o) => o.id === order.id || o.status === 'COMPLETED')) startLinger(order.delivery_date);
+  };
+
+  const undoFinish = (date: string, group: Order[]) => {
+    const id = lastToggled.current[date] ?? group[group.length - 1]?.id;
+    if (id) setOrderStatus(id, 'PENDING');
+    clearLinger(date);
+  };
+
+  const openWhatsApp = (order: Order) => {
+    const customer = allCustomers[order.customer_id];
+    const phone = toIntlPhone(customer?.whatsapp_number ?? '');
+    if (!phone) {
+      Alert.alert('Nomor belum ada', 'Pelanggan ini belum punya nomor WhatsApp.');
+      return;
+    }
+    const message = `Halo ${customer?.name ?? ''}, pesanan dari ${storeName} sedang diantar ya.`;
+    void openUrl(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`);
+  };
+
+  const confirmDeleteDelivery = (order: Order) => {
+    const name = allCustomers[order.customer_id]?.name ?? 'pelanggan ini';
+    Alert.alert('Hapus dari daftar antar?', `${name} dipindah ke Space dan bisa dipulihkan selama 7 hari.`, [
+      { text: 'Batal', style: 'cancel' },
+      { text: 'Hapus', style: 'destructive', onPress: () => moveToTrash('orders', order.id) },
+    ]);
+  };
 
   const status = !syncEnabled
     ? { dot: 'bg-zinc-400', text: 'Mode lokal' }
@@ -79,7 +173,7 @@ export function HomeScreen() {
     ]);
   };
 
-  const planRoute = () => {
+  const planRoute = (list: Order[] = active) => {
     const origin = profile?.origin_coordinates;
     if (!origin) {
       Alert.alert(
@@ -94,7 +188,7 @@ export function HomeScreen() {
     }
     const seen = new Set<string>();
     const stops: { coordinates: NonNullable<Customer['coordinates']>; payload: string }[] = [];
-    active.forEach((order) => {
+    list.forEach((order) => {
       const customer = allCustomers[order.customer_id];
       if (customer?.coordinates && !seen.has(customer.id)) {
         seen.add(customer.id);
@@ -177,7 +271,7 @@ export function HomeScreen() {
 
       {routeCount > 0 ? (
         <Pressable
-          onPress={planRoute}
+          onPress={() => planRoute()}
           className="mb-4 min-h-[58px] flex-row items-center gap-3 rounded-2xl border border-red-200 bg-white px-4 active:bg-red-50"
         >
           <View className="h-10 w-10 items-center justify-center rounded-xl bg-red-600">
@@ -191,9 +285,35 @@ export function HomeScreen() {
         </Pressable>
       ) : null}
 
-      {active.length > 0 ? (
+      {regularActive.length > 0 || deliveryGroups.length > 0 ? (
         <View className="gap-4">
-          {active.map((order) => {
+          {deliveryGroups.map(([date, list]) => {
+            const rows = buildRows(list);
+            const relative = relativeDateLabel(date);
+            const dateLabel = ['Hari Ini', 'Besok', 'Lusa'].includes(relative)
+              ? `${relative}, ${shortDate(date)}`
+              : longDate(date);
+            const remaining = list.filter((o) => o.status !== 'COMPLETED');
+            return (
+              <DeliveryCard
+                key={`delivery-${date}`}
+                dateLabel={dateLabel}
+                rows={rows}
+                finished={list.every((o) => o.status === 'COMPLETED')}
+                canRoute={remaining.some((o) => allCustomers[o.customer_id]?.coordinates)}
+                onToggleDone={(order) => toggleDelivery(order, list)}
+                onWhatsApp={openWhatsApp}
+                onOpenMap={(order) => {
+                  const url = customerMapUrl(allCustomers[order.customer_id]);
+                  if (url) void openUrl(url);
+                }}
+                onDelete={confirmDeleteDelivery}
+                onRoute={() => planRoute(remaining)}
+                onUndoFinish={() => undoFinish(date, list)}
+              />
+            );
+          })}
+          {regularActive.map((order) => {
             const customer = allCustomers[order.customer_id];
             return (
               <OrderCard

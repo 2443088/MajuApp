@@ -74,6 +74,19 @@ export function deliveryLabel(slot: string, time: string): string {
   return `Harus ${slot} ${time}`;
 }
 
+/** Sebelum 12:00 = Pagi. Hanya untuk field lama delivery_slot (kompatibel dengan APK lama). */
+export function slotFromTime(time: string): 'Pagi' | 'Siang' {
+  const hour = parseInt(time.slice(0, 2), 10);
+  return Number.isFinite(hour) && hour >= 12 ? 'Siang' : 'Pagi';
+}
+
+/** "Tunggu toko buka 07:30" bila ada keterangan, "07:30" bila tidak. Kosong bila tidak ada jam. */
+export function timeText(time: string, note: string): string {
+  if (!time) return '';
+  const trimmed = note.trim();
+  return trimmed ? `${trimmed} ${time}` : time;
+}
+
 export function greeting(now: Date = new Date()): string {
   const h = now.getHours();
   if (h < 11) return 'Selamat pagi';
@@ -96,6 +109,15 @@ export function normalizePhone(input: string): string {
   if (digits.startsWith('62')) return `0${digits.slice(2)}`;
   if (digits.startsWith('0')) return digits;
   return `0${digits}`;
+}
+
+/** 0812-xxx / +62812xxx -> 62812xxx (format wa.me). */
+export function toIntlPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('62')) return digits;
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  return `62${digits}`;
 }
 
 export function displayPhone(phone: string): string {

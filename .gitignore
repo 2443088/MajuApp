@@ -7,3 +7,4 @@ web-build/
 .env
 .env.local
 expo-env.d.ts
+eas.json

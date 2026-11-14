@@ -310,7 +310,7 @@ export function SettingsScreen() {
         </Pressable>
       </Card>
 
-      <Txt className="mt-1 text-center text-xs text-zinc-400">MJ (Mama Jualan) v2.0</Txt>
+      <Txt className="mt-1 text-center text-xs text-zinc-400">MJ (Mama Jualan) v2.1</Txt>
 
       {/* Modal Tambah Logo Baru */}
       <Modal

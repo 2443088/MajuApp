@@ -7,7 +7,6 @@ interface Props {
   shape: PhotoShape;
   width: number;
   height?: number;
-  /** Cincin abu-abu tipis di tepi foto (seperti template referensi). */
   ring?: boolean;
   style?: ViewStyle;
 }
@@ -37,7 +36,6 @@ function radiusFor(shape: PhotoShape, w: number): ViewStyle {
   }
 }
 
-/** Bingkai foto dengan bentuk tertentu. Tanpa foto: placeholder langit + bukit hijau. */
 export function PhotoFrame({ uri, shape, width, height = width, ring = false, style }: Props) {
   return (
     <View
@@ -56,32 +54,7 @@ export function PhotoFrame({ uri, shape, width, height = width, ring = false, st
     >
       {uri ? (
         <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-      ) : (
-        <>
-          <View
-            style={{
-              position: 'absolute',
-              left: width * 0.14,
-              top: height * 0.14,
-              width: width * 0.36,
-              height: height * 0.11,
-              borderRadius: height * 0.06,
-              backgroundColor: '#ffffff',
-            }}
-          />
-          <View
-            style={{
-              position: 'absolute',
-              left: -width * 0.2,
-              bottom: -height * 0.34,
-              width: width * 1.4,
-              height: height * 0.62,
-              borderRadius: width,
-              backgroundColor: '#8aa500',
-            }}
-          />
-        </>
-      )}
+      ) : null}
     </View>
   );
 }

@@ -45,7 +45,7 @@ export function HistoryScreen() {
 
   const stats = useMemo(() => {
     const today = new Date();
-    const completed = orders.filter((o) => o.status === 'COMPLETED');
+    const completed = orders.filter((o) => o.status === 'COMPLETED' && o.kind !== 'DELIVERY');
     const range = currentRange(period, today);
     const current = completed.filter((o) => inRange(o, range));
     const previous = completed.filter((o) => inRange(o, previousRange(period, today)));

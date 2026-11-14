@@ -364,10 +364,12 @@ function normalizeOrder(raw: Raw, id: string): Order {
       : [];
   return {
     ...syncFields(raw, id),
+    ...(raw.kind === 'DELIVERY' ? { kind: 'DELIVERY' as const } : {}),
     customer_id: str(raw.customer_id),
     delivery_date: str(raw.delivery_date),
     delivery_slot: raw.delivery_slot === 'Siang' ? 'Siang' : 'Pagi',
-    delivery_time: str(raw.delivery_time, '07:00'),
+    delivery_time: str(raw.delivery_time),
+    ...(typeof raw.time_note === 'string' && raw.time_note ? { time_note: raw.time_note } : {}),
     items: (itemsRaw as Raw[]).map((item) => ({
       menu_id: str(item.menu_id),
       title: str(item.title, 'Menu'),

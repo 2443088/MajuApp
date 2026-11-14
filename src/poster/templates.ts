@@ -3,27 +3,23 @@ export type PosterRatio = '9:16' | '3:4';
 export type PhotoShape = 'circle' | 'squircle' | 'rounded' | 'leaf' | 'arch';
 
 export type PosterTemplateId =
-  | 'story-grid'
-  | 'story-circles'
-  | 'story-vertical'
-  | 'story-hero'
+  | 'story-4'
+  | 'story-3'
+  | 'story-2'
+  | 'story-1'
   | 'story-list'
-  | 'feed-promo'
-  | 'feed-quad'
-  | 'feed-list';
+  | 'feed-1';
 
 export interface PosterTemplateDef {
   id: PosterTemplateId;
   ratio: PosterRatio;
   name: string;
+  short: string;
   hint: string;
   kind: 'photos' | 'list';
   photoSlots: number;
-  /** Bentuk bingkai tiap slot foto, berurutan. */
   shapes: PhotoShape[];
-  /** Template ini punya kolom judul besar (kategori)? */
   usesTitle: boolean;
-  /** Teks default untuk ajakan pesan di bagian bawah. */
   defaultOrderText: string;
 }
 
@@ -44,102 +40,90 @@ export const RATIO_LABEL: Record<PosterRatio, string> = {
 };
 
 export const POSTER_COLORS = {
-  red: '#d00000',
-  paper: '#efebeb',
-  ink: '#111111',
-  grey: '#555555',
+  red: '#8f1d21',
+  paper: '#fffdf9',
+  ink: '#171311',
+  muted: '#8c7f73',
+  eyebrow: '#9d8d7e',
+  rule: '#cbbdb0',
+  divider: '#d4c5b8',
+  cardBg: '#eee8df',
 } as const;
 
-const ORDER_WA = 'BISA ORDER KE NOMOR WA';
+const ORDER_CTA = 'ORDER FOR TOMORROW';
 
 export const POSTER_TEMPLATES: PosterTemplateDef[] = [
   {
-    id: 'story-grid',
+    id: 'story-4',
     ratio: '9:16',
-    name: 'Grid 4 Foto',
-    hint: '4 foto kotak membulat, nama di atas dan bawah',
+    name: 'Story — 4 Foto',
+    short: '4 Foto',
+    hint: 'Grid 2×2 foto makanan dengan nomor badge & deskripsi',
     kind: 'photos',
     photoSlots: 4,
-    shapes: ['squircle', 'squircle', 'squircle', 'squircle'],
+    shapes: ['rounded', 'rounded', 'rounded', 'rounded'],
     usesTitle: false,
-    defaultOrderText: ORDER_WA,
+    defaultOrderText: ORDER_CTA,
   },
   {
-    id: 'story-circles',
+    id: 'story-3',
     ratio: '9:16',
-    name: '3 Foto Bulat',
-    hint: '3 foto bulat zig-zag dengan garis penanda',
+    name: 'Story — 3 Foto',
+    short: '3 Foto',
+    hint: '1 foto utama di atas dan 2 foto di bawahnya',
     kind: 'photos',
     photoSlots: 3,
-    shapes: ['circle', 'circle', 'circle'],
+    shapes: ['rounded', 'rounded', 'rounded'],
     usesTitle: false,
-    defaultOrderText: ORDER_WA,
+    defaultOrderText: ORDER_CTA,
   },
   {
-    id: 'story-vertical',
+    id: 'story-2',
     ratio: '9:16',
-    name: 'Judul Vertikal',
-    hint: '2 foto, tulisan MENU besar tegak di kiri',
+    name: 'Story — 2 Foto',
+    short: '2 Foto',
+    hint: '2 baris horizontal: foto di kiri, judul & deskripsi di kanan',
     kind: 'photos',
     photoSlots: 2,
-    shapes: ['rounded', 'squircle'],
+    shapes: ['rounded', 'rounded'],
     usesTitle: false,
-    defaultOrderText: ORDER_WA,
+    defaultOrderText: ORDER_CTA,
   },
   {
-    id: 'story-hero',
+    id: 'story-1',
     ratio: '9:16',
-    name: '1 Foto Utama',
-    hint: '1 foto bulat besar, nama melengkung di atasnya',
+    name: 'Story — 1 Foto',
+    short: '1 Foto',
+    hint: '1 foto hidangan utama besar di tengah',
     kind: 'photos',
     photoSlots: 1,
-    shapes: ['circle'],
+    shapes: ['rounded'],
     usesTitle: false,
-    defaultOrderText: 'Bisa order ke nomor WA',
+    defaultOrderText: ORDER_CTA,
   },
   {
     id: 'story-list',
     ratio: '9:16',
-    name: 'Daftar Menu',
-    hint: 'Tulisan daftar menu dua kolom, tanpa foto',
+    name: 'Story — Daftar Menu',
+    short: 'Daftar Menu',
+    hint: 'Daftar menu 2 kolom per kategori, tanpa foto',
     kind: 'list',
     photoSlots: 0,
     shapes: [],
     usesTitle: false,
-    defaultOrderText: 'Order via WhatsApp',
+    defaultOrderText: ORDER_CTA,
   },
   {
-    id: 'feed-promo',
+    id: 'feed-1',
     ratio: '3:4',
-    name: 'Promo Merah',
-    hint: '1 foto bulat, kategori besar, nama di label hitam',
+    name: 'Feed — 1 Foto',
+    short: 'IG Feed',
+    hint: '1 foto besar dengan badge kategori & stiker bulat miring',
     kind: 'photos',
     photoSlots: 1,
-    shapes: ['circle'],
+    shapes: ['rounded'],
     usesTitle: true,
-    defaultOrderText: 'ORDER NOW',
-  },
-  {
-    id: 'feed-quad',
-    ratio: '3:4',
-    name: '4 Foto Beda Bentuk',
-    hint: 'Bulat, daun, lengkung, dan kotak membulat',
-    kind: 'photos',
-    photoSlots: 4,
-    shapes: ['circle', 'leaf', 'arch', 'squircle'],
-    usesTitle: false,
-    defaultOrderText: ORDER_WA,
-  },
-  {
-    id: 'feed-list',
-    ratio: '3:4',
-    name: 'Daftar Menu',
-    hint: 'Bingkai ganda putih, daftar menu dua kolom',
-    kind: 'list',
-    photoSlots: 0,
-    shapes: [],
-    usesTitle: false,
-    defaultOrderText: 'Order via WhatsApp',
+    defaultOrderText: ORDER_CTA,
   },
 ];
 
@@ -154,37 +138,61 @@ export function getTemplate(id: PosterTemplateId): PosterTemplateDef {
 export interface PosterSlot {
   uri?: string;
   caption: string;
+  description: string;
+  showDescription: boolean;
 }
 
 export interface PosterMenuSection {
-  /** Nama label/kategori menu (kosong untuk bagian tanpa label di awal). */
   label: string;
   items: string[];
-  /** 'full' = 2 kolom dengan judul terpusat, 'half' = 1 kolom bersandingan, 'auto' = otomatis berdasarkan jumlah */
   layout?: 'auto' | 'full' | 'half';
 }
 
 export interface PosterContent {
   brand: string;
   subtitle: string;
-  /** Baris kecil di bawah judul, mis. "SINCE 2002". Boleh kosong. */
+  showSubtitle: boolean;
   since: string;
-  /** Judul kategori besar (template Promo). */
   title: string;
+  showCategory: boolean;
+  topNote: string;
+  showTopNote: boolean;
+  dividerTagline: string;
+  showDivider: boolean;
+  feedSticker: string;
+  showFeedSticker: boolean;
+  feedLabel: string;
+  showFeedLabel: boolean;
+  textIntro: string;
+  showTextIntro: boolean;
+  menuNote: string;
+  showMenuNote: boolean;
   orderText: string;
+  showFooterCta: boolean;
   phone: string;
+  showWhatsappBadge: boolean;
+  showItemNumbers: boolean;
   slots: PosterSlot[];
   listItems: string[];
-  /** Daftar menu terkelompok berdasarkan label/kategori. */
   sections?: PosterMenuSection[];
-  /** URI logo kustom yang dipilih pengguna untuk poster ini. */
   logoUri?: string;
 }
 
 export const MAX_PHOTO_SLOTS = 4;
 
+const DEFAULT_DESCRIPTIONS = [
+  'fresh from our kitchen',
+  'comfort in every bite',
+  'crispy, savory, made today',
+  'a simple kitchen favorite',
+];
+
 export function emptySlots(): PosterSlot[] {
-  return Array.from({ length: MAX_PHOTO_SLOTS }, () => ({ caption: '' }));
+  return Array.from({ length: MAX_PHOTO_SLOTS }, (_, i) => ({
+    caption: '',
+    description: DEFAULT_DESCRIPTIONS[i] ?? 'made fresh today',
+    showDescription: true,
+  }));
 }
 
 /** 0813 4495 6336 -> 0813-4495-6336 */

@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, View } from 'react-native';
 import { colors } from '../theme/colors';
 import type { Order } from '../types';
-import { deliveryLabel, formatRupiah, longDate, relativeDateLabel, shortDate } from '../utils/format';
+import { formatRupiah, longDate, relativeDateLabel, shortDate } from '../utils/format';
 import { AppIcon, Avatar, Txt, type IconName } from './ui';
 
 interface Props {
@@ -109,12 +109,14 @@ export function OrderCard({
             {dateText(order.delivery_date)}
           </Txt>
         </View>
-        <View className="flex-[1.25] flex-row items-center gap-2 rounded-[11px] border border-red-200 bg-red-50 px-2.5 py-2.5">
-          <AppIcon name="clock" size={19} color={colors.red600} />
-          <Txt className="flex-1 text-[13px] font-dm-bold text-red-800" numberOfLines={1}>
-            {deliveryLabel(order.delivery_slot, order.delivery_time)}
-          </Txt>
-        </View>
+        {order.delivery_time ? (
+          <View className="flex-row items-center gap-2 rounded-[11px] border border-red-200 bg-red-50 px-3 py-2.5">
+            <AppIcon name="clock" size={19} color={colors.red600} />
+            <Txt className="text-[13px] font-dm-bold text-red-800" numberOfLines={1}>
+              {order.delivery_time}
+            </Txt>
+          </View>
+        ) : null}
       </View>
 
       {order.note ? (

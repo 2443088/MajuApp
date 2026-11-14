@@ -56,7 +56,7 @@ export function SpaceScreen() {
         key: o.id,
         collection: 'orders' as const,
         id: o.id,
-        title: `Pesanan #${o.id.slice(-4)} • ${allCustomers[o.customer_id]?.name ?? 'Pelanggan'}`,
+        title: `${o.kind === 'DELIVERY' ? 'Pengantaran' : `Pesanan #${o.id.slice(-4)}`} • ${allCustomers[o.customer_id]?.name ?? 'Pelanggan'}`,
         deletedAt: o.deleted_at ?? 0,
         icon: 'book' as const,
       })),

@@ -60,12 +60,19 @@ export interface OrderItem {
 }
 
 export interface Order extends Syncable {
+  /**
+   * 'DELIVERY' = titik antar saja (Mode Kurir), tanpa menu dan tanpa total.
+   * Kosong / 'ORDER' = pesanan biasa. Data lama otomatis dianggap pesanan biasa.
+   */
+  kind?: 'ORDER' | 'DELIVERY';
   customer_id: string;
   /** Format YYYY-MM-DD (zona waktu perangkat). */
   delivery_date: string;
   delivery_slot: DeliverySlot;
-  /** Format HH:MM 24 jam. */
+  /** HH:MM. Kosong = tidak ada catatan waktu. */
   delivery_time: string;
+  /** Keterangan waktu opsional (mis. "Tunggu toko buka"). Hanya ada bila jam aktif. */
+  time_note?: string;
   items: OrderItem[];
   note: string;
   total_amount: number;
@@ -81,8 +88,12 @@ export interface DraftOrder {
   id: string;
   customer_id: string;
   quantities: Record<string, number>;
-  slot: DeliverySlot;
+  /** Catatan waktu aktif? Jam terakhir tetap diingat walau nonaktif. */
+  timeOn: boolean;
+  /** HH:MM */
   time: string;
+  /** Keterangan waktu (opsional). */
+  timeNote: string;
   note: string;
 }
 
